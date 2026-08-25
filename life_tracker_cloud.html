@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Life // 2026 — Cloud Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f3efe6;--paper:#fffdf8;--ink:#24221e;--muted:#777168;--line:#ddd7ca;--green:#46594d;--rust:#9b6246;--soft:#eee9df;--danger:#9d5b55}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}.wrap{max-width:1180px;margin:auto;padding:22px 16px 60px}
+.top{display:flex;justify-content:space-between;align-items:end;gap:15px;margin-bottom:18px}.eyebrow{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted)}h1{font:500 42px Georgia,serif;margin:5px 0}.muted{color:var(--muted);font-size:12px}
+nav{display:flex;gap:6px;overflow:auto;margin-bottom:18px}button{border:1px solid var(--line);background:var(--paper);padding:9px 13px;border-radius:10px;cursor:pointer;color:var(--ink)}button.active,.primary{background:var(--green);color:#fff;border-color:var(--green)}
+.hidden{display:none!important}.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:17px}.card{background:var(--paper);border:1px solid var(--line);border-radius:17px;padding:19px;margin-bottom:17px;box-shadow:0 5px 18px #00000007}.card h2{font-size:17px;margin:0 0 14px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.stat{background:var(--soft);padding:13px;border-radius:11px}.stat b{display:block;font-size:22px}.stat span{font-size:10px;color:var(--muted)}
+.habit{display:grid;grid-template-columns:40px 1fr auto;gap:11px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.habit small{display:block;color:var(--muted);font-size:11px}.check{width:37px;height:37px;border-radius:50%;padding:0}.done{background:var(--green);color:#fff;border-color:var(--green)}
+input,textarea{width:100%;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:10px;border-radius:9px;font:inherit}.row{display:flex;gap:8px}.row>*{flex:1}textarea{min-height:110px;resize:vertical}
+.score{text-align:center}.score strong{font:500 58px Georgia,serif}.progress{height:9px;background:#e4ded4;border-radius:99px;overflow:hidden}.bar{height:100%;background:var(--green);width:0;transition:.2s}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.dow{text-align:center;color:var(--muted);font-size:10px;padding:5px}.day{min-height:44px;border:1px solid var(--line);border-radius:8px;padding:5px;background:var(--paper);cursor:pointer;font-size:11px}.day.empty{visibility:hidden}.day.today{outline:2px solid var(--rust)}.dot{display:block;height:5px;margin-top:5px;border-radius:5px;background:#e3ded4}.d1{background:#b7c3b9}.d2{background:#82988a}.d3{background:#5f7869}.d4{background:var(--rust)}
+canvas{width:100%;height:270px}.goal{padding:12px 0;border-bottom:1px solid var(--line)}.goalTop{display:flex;justify-content:space-between;gap:10px}.quote{font:italic 18px Georgia,serif;line-height:1.5}.auth{max-width:440px;margin:10vh auto}.auth h1{text-align:center}.status{padding:10px;border-radius:9px;background:var(--soft);margin:10px 0;font-size:13px}.error{background:#f4dfdc;color:#713c37}.success{background:#dfe9e2;color:#365140}.userbar{display:flex;gap:8px;align-items:center}.small{font-size:11px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}h1{font-size:35px}.top{align-items:start}.row{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div id="auth" class="auth card">
+<div class="eyebrow">private personal tracker</div><h1>Life // 2026</h1>
+<p class="muted">Sign in to sync your life tracker across your phone and PC.</p>
+<div id="authMsg"></div>
+<input id="email" type="email" placeholder="Email"><br><br>
+<input id="password" type="password" placeholder="Password"><br><br>
+<div class="row"><button class="primary" onclick="signIn()">Sign in</button><button onclick="signUp()">Create account</button></div>
+<p class="small muted">Your tracker data belongs to your Supabase account. Never share your password.</p>
+</div>
+
+<div id="app" class="wrap hidden">
+<div class="top"><div><div class="eyebrow">personal operating system · cloud synced</div><h1>Life // 2026</h1></div><div class="userbar"><span id="userEmail" class="muted"></span><button onclick="signOut()">Sign out</button></div></div>
+<nav id="nav"></nav>
+
+<section id="today"><div class="grid"><main>
+<div class="card"><h2 id="todayTitle">Today's habits</h2><div id="habits"></div><div class="row"><input id="newHabit" placeholder="Add a habit…"><button class="primary" onclick="addHabit()">Add</button></div></div>
+<div class="card"><h2>Daily numbers</h2><div class="stats"><div class="stat"><b id="done">0</b><span>completed</span></div><div class="stat"><b id="study">0h</b><span>study</span></div><div class="stat"><b id="sleep">0h</b><span>sleep</span></div><div class="stat"><b id="mood">—</b><span>mood / 10</span></div></div><div class="row" style="margin-top:12px"><input id="studyIn" type="number" step=".5" placeholder="Study hours"><input id="sleepIn" type="number" step=".5" placeholder="Sleep hours"><input id="moodIn" type="number" min="1" max="10" placeholder="Mood 1–10"></div></div>
+<div class="card"><h2>Today's note</h2><textarea id="note" placeholder="What happened today? What did you learn?"></textarea></div>
+</main><aside>
+<div class="card score"><div class="eyebrow">daily score</div><strong id="score">0%</strong><p id="scoreText" class="muted">Start with one small win.</p><div class="progress"><div id="bar" class="bar"></div></div></div>
+<div class="card"><div class="quote">“Small things, consistently done, become a life.”</div><p class="muted">The dashboard shows patterns; it doesn't judge you.</p></div>
+<div class="card"><h2>Quick insight</h2><p id="insight" class="muted"></p></div>
+</aside></div></section>
+
+<section id="calendar" class="hidden"><div class="card"><div class="row" style="align-items:center"><button onclick="moveMonth(-1)">←</button><h2 id="calTitle" style="flex:1;text-align:center"></h2><button onclick="moveMonth(1)">→</button></div><div id="cal" class="calendar"></div><p class="muted">Click any date to edit that day. Color shows completion.</p></div></section>
+<section id="week" class="hidden"><div class="grid"><div class="card"><h2>7-day performance</h2><canvas id="weekChart"></canvas></div><div class="card"><h2>Weekly report</h2><div id="weekReport"></div></div></div></section>
+<section id="month" class="hidden"><div class="grid"><div class="card"><h2 id="monthTitle">Monthly trend</h2><canvas id="monthChart"></canvas></div><div class="card"><h2>Monthly report</h2><div id="monthReport"></div></div></div></section>
+<section id="year" class="hidden"><div class="grid"><div class="card"><h2>2026 — year at a glance</h2><canvas id="yearChart"></canvas></div><div class="card"><h2>Year summary</h2><div id="yearReport"></div></div></div></section>
+<section id="goals" class="hidden"><div class="grid"><div class="card"><h2>Long-term goals</h2><div id="goals"></div><div class="row"><input id="newGoal" placeholder="e.g. Finish 12 books"><button class="primary" onclick="addGoal()">Add</button></div></div><div class="card"><h2>Goal progress</h2><div id="goalStats"></div></div></div></section>
+<section id="journal" class="hidden"><div class="grid"><div class="card"><h2>Recent journal days</h2><div id="journalDates" class="calendar"></div></div><div class="card"><h2 id="journalTitle">Reflection</h2><p id="journalText" class="muted">Your saved notes appear here.</p></div></div></section>
+<section id="settings" class="hidden"><div class="card"><h2>Account & backup</h2><p class="muted">This version syncs through your Supabase account. You can still export a local backup.</p><button class="primary" onclick="exportData()">Export backup</button> <button onclick="importData()">Import backup</button></div></section>
+<footer class="muted" style="text-align:center;margin-top:20px">Cloud synced · private account · works on phone + PC</footer>
+</div>
+
+<script>
+const SUPABASE_URL = "https://rtgtfjhahlvfxyoglxoe.supabase.co";
+const SUPABASE_KEY = "sb_publishable_7NGgtfao9h5amBibMQnYAQ_RR-Iod4r";
+const sb = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+let user=null,habits=[],daily={},habitLogs={},goals=[],calDate=new Date(),activeDate=new Date();
+const K=d=>{let x=new Date(d);return x.toISOString().slice(0,10)},T=()=>K(new Date());
+const L=k=>daily[k]||{};
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+async function signUp(){
+ const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;
+ if(!email||password.length<6)return msg("Enter an email and a password of at least 6 characters.","error");
+ const {error}=await sb.auth.signUp({email,password});
+ if(error)return msg(error.message,"error");
+ msg("Account created. Check your email if confirmation is required, then sign in.","success");
+}
+async function signIn(){
+ const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;
+ const {data,error}=await sb.auth.signInWithPassword({email,password});
+ if(error)return msg(error.message,"error");
+ user=data.user;await startApp();
+}
+async function signOut(){await sb.auth.signOut();location.reload()}
+function msg(t,c=""){document.getElementById("authMsg").innerHTML=`<div class="status ${c}">${esc(t)}</div>`}
+
+async function startApp(){
+ document.getElementById("auth").classList.add("hidden");document.getElementById("app").classList.remove("hidden");
+ document.getElementById("userEmail").textContent=user.email;
+ buildNav();await loadData();render();
+}
+async function loadData(){
+ const [h,d,l,g]=await Promise.all([
+  sb.from("life_habits").select("*").eq("user_id",user.id).eq("active",true).order("created_at"),
+  sb.from("life_daily").select("*").eq("user_id",user.id),
+  sb.from("life_habit_logs").select("*").eq("user_id",user.id),
+  sb.from("life_goals").select("*").eq("user_id",user.id).order("created_at")
+ ]);
+ if(h.error||d.error||l.error||g.error){alert("Could not load tracker data. Check that the SQL setup was completed.");return}
+ habits=h.data||[];daily={};(d.data||[]).forEach(x=>daily[x.date]=x);habitLogs={};(l.data||[]).forEach(x=>{habitLogs[x.date+"_"+x.habit_id]=x.completed});goals=g.data||[];
+ if(!habits.length)await seedHabits();
+}
+async function seedHabits(){for(const x of [["🏋️","Gym","Move your body"],["📚","Study","Focused study"],["📖","Read","Pages or a book"],["🧠","Learn","Learn something new"],["😴","Sleep well","Protect your sleep"]]){const {data}=await sb.from("life_habits").insert({user_id:user.id,name:x[1],icon:x[0],description:x[2]}).select().single();if(data)habits.push(data)}}
+async function saveDaily(field,value,k=K(activeDate)){
+ let payload={user_id:user.id,date:k,[field]:field==="journal"?value:(value===""?0:Number(value)),updated_at:new Date().toISOString()};
+ const {data,error}=await sb.from("life_daily").upsert(payload,{onConflict:"user_id,date"}).select().single();
+ if(error){alert(error.message);return}daily[k]=data;renderToday();
+}
+async function toggle(id){
+ const k=K(activeDate),key=k+"_"+id,next=!Boolean(habitLogs[key]);
+ const {error}=await sb.from("life_habit_logs").upsert({user_id:user.id,habit_id:id,date:k,completed:next},{onConflict:"user_id,habit_id,date"});
+ if(error){alert(error.message);return}habitLogs[key]=next;render();
+}
+async function addHabit(){
+ const x=document.getElementById("newHabit"),name=x.value.trim();if(!name)return;
+ const {data,error}=await sb.from("life_habits").insert({user_id:user.id,name,icon:"✓",description:"Personal habit"}).select().single();
+ if(error)return alert(error.message);habits.push(data);x.value="";render();
+}
+function completed(k){return habits.filter(h=>habitLogs[k+"_"+h.id]).length}
+function score(k){return habits.length?Math.round(completed(k)/habits.length*100):0}
+function renderToday(){
+ const k=K(activeDate),l=L(k),b=document.getElementById("habits");b.innerHTML="";
+ document.getElementById("todayTitle").textContent=activeDate.toDateString()===new Date().toDateString()?"Today's habits":activeDate.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"})+" habits";
+ habits.forEach(h=>b.innerHTML+=`<div class="habit"><div>${esc(h.icon)}</div><div><b>${esc(h.name)}</b><small>${esc(h.description||"")}</small></div><button class="check ${habitLogs[k+"_"+h.id]?"done":""}" onclick="toggle(${h.id})">${habitLogs[k+"_"+h.id]?"✓":"+"}</button></div>`);
+ const s=score(k);document.getElementById("score").textContent=s+"%";document.getElementById("bar").style.width=s+"%";document.getElementById("done").textContent=completed(k)+"/"+habits.length;document.getElementById("study").textContent=(l.study_hours||0)+"h";document.getElementById("sleep").textContent=(l.sleep_hours||0)+"h";document.getElementById("mood").textContent=l.mood||"—";document.getElementById("studyIn").value=l.study_hours||"";document.getElementById("sleepIn").value=l.sleep_hours||"";document.getElementById("moodIn").value=l.mood||"";document.getElementById("note").value=l.journal||"";
+ document.getElementById("scoreText").textContent=s>=80?"Excellent. Keep the momentum.":s>=50?"Solid day. Keep going.":"Start with one small win.";
+ let p=new Date(activeDate);p.setDate(p.getDate()-1),ps=score(K(p));document.getElementById("insight").textContent=`Yesterday: ${ps}%. Today: ${s}%. ${s>=ps?"You're moving in the right direction.":"One rough day doesn't define the trend."}`;
+}
+["studyIn","sleepIn","moodIn"].forEach(id=>document.getElementById(id).addEventListener("change",e=>saveDaily(id==="studyIn"?"study_hours":id==="sleepIn"?"sleep_hours":"mood",e.target.value)));
+document.getElementById("note").addEventListener("change",e=>saveDaily("journal",e.target.value));
+
+function moveMonth(n){calDate.setMonth(calDate.getMonth()+n);calendar()}
+function calendar(){
+ let y=calDate.getFullYear(),m=calDate.getMonth(),first=new Date(y,m,1).getDay(),n=new Date(y,m+1,0).getDate();
+ document.getElementById("calTitle").textContent=new Date(y,m,1).toLocaleDateString(undefined,{month:"long",year:"numeric"});
+ let c=document.getElementById("cal"),w=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];c.innerHTML=w.map(x=>`<div class="dow">${x}</div>`).join("");
+ for(let i=0;i<first;i++)c.innerHTML+=`<div class="day empty"></div>`;
+ for(let d=1;d<=n;d++){let k=K(new Date(y,m,d)),s=score(k),cl=s>=100?"d4":s>=75?"d3":s>=50?"d2":s?"d1":"";c.innerHTML+=`<div class="day ${cl} ${k===T()?"today":""}" onclick="pick('${k}')">${d}<span class="dot"></span></div>`}
+}
+function pick(k){activeDate=new Date(k+"T12:00:00");show("today");renderToday()}
+
+function past(n){let a=[];for(let i=n-1;i>=0;i--){let d=new Date();d.setDate(d.getDate()-i);a.push(d)}return a}
+function chart(id,vals,labels){let c=document.getElementById(id),x=c.getContext("2d"),w=c.width=c.clientWidth*2,h=c.height=270*2;x.clearRect(0,0,w,h);x.strokeStyle="#ddd7ca";x.lineWidth=2;x.beginPath();x.moveTo(40,15);x.lineTo(40,h-45);x.lineTo(w-15,h-45);x.stroke();let st=(w-60)/Math.max(1,vals.length-1);x.strokeStyle="#46594d";x.lineWidth=5;x.beginPath();vals.forEach((v,i)=>{let X=40+i*st,Y=h-55-v/100*(h-90);i?x.lineTo(X,Y):x.moveTo(X,Y)});x.stroke();vals.forEach((v,i)=>{let X=40+i*st,Y=h-55-v/100*(h-90);x.fillStyle="#46594d";x.beginPath();x.arc(X,Y,6,0,7);x.fill();x.fillStyle="#777168";x.font="16px system-ui";if(vals.length<=15)x.fillText(v+"%",X-12,Y-12);x.fillText(labels[i],X-12,h-12)})}
+function week(){let ds=past(7),v=ds.map(d=>score(K(d)));chart("weekChart",v,ds.map(d=>d.toLocaleDateString(undefined,{weekday:"short"})));let avg=Math.round(v.reduce((a,b)=>a+b,0)/7),study=ds.reduce((a,d)=>a+(L(K(d)).study_hours||0),0);document.getElementById("weekReport").innerHTML=`<div class="stats"><div class="stat"><b>${avg}%</b><span>average</span></div><div class="stat"><b>${study}h</b><span>study</span></div><div class="stat"><b>${Math.max(...v)}%</b><span>best</span></div><div class="stat"><b>${Math.min(...v)}%</b><span>lowest</span></div></div><p class="muted">${avg>=80?"Strong week.":avg>=60?"Good progress.":"Focus on one or two habits next week."}</p>`}
+function month(){let y=calDate.getFullYear(),m=calDate.getMonth(),n=new Date(y,m+1,0).getDate(),v=[];for(let d=1;d<=n;d++)v.push(score(K(new Date(y,m,d))));chart("monthChart",v,v.map((_,i)=>i+1));document.getElementById("monthTitle").textContent=new Date(y,m,1).toLocaleDateString(undefined,{month:"long",year:"numeric"})+" trend";let t=v.filter(Boolean),avg=t.length?Math.round(t.reduce((a,b)=>a+b,0)/t.length):0,study=v.reduce((a,_,i)=>a+(L(K(new Date(y,m,i+1))).study_hours||0),0);document.getElementById("monthReport").innerHTML=`<div class="stats"><div class="stat"><b>${t.length}/${n}</b><span>days logged</span></div><div class="stat"><b>${avg}%</b><span>average</span></div><div class="stat"><b>${t.length?Math.max(...t):0}%</b><span>best</span></div><div class="stat"><b>${study}h</b><span>study</span></div></div>`}
+function year(){let v=[],lab=[];for(let m=0;m<12;m++){let n=new Date(2026,m+1,0).getDate(),a=[];for(let d=1;d<=n;d++){let s=score(`2026-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`);if(s)a.push(s)}v.push(a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0);lab.push(new Date(2026,m,1).toLocaleDateString(undefined,{month:"short"}))}chart("yearChart",v,lab);let t=v.filter(Boolean);document.getElementById("yearReport").innerHTML=`<div class="score"><strong>${t.length?Math.round(t.reduce((a,b)=>a+b,0)/t.length):0}%</strong><p>average across logged months</p></div>`}
+
+async function addGoal(){let x=document.getElementById("newGoal"),title=x.value.trim();if(!title)return;let {data,error}=await sb.from("life_goals").insert({user_id:user.id,title}).select().single();if(error)return alert(error.message);goals.push(data);x.value="";goalsRender()}
+async function goalDone(id){let g=goals.find(x=>x.id===id);let {error}=await sb.from("life_goals").update({completed:!g.completed}).eq("id",id).eq("user_id",user.id);if(error)return alert(error.message);g.completed=!g.completed;goalsRender()}
+function goalsRender(){let b=document.getElementById("goals");b.innerHTML=goals.length?goals.map(g=>`<div class="goal"><div class="goalTop"><b>${esc(g.title)}</b><button onclick="goalDone(${g.id})">${g.completed?"✓ Done":"Mark done"}</button></div></div>`).join(""):"<p class=muted>No goals yet.</p>";let d=goals.filter(g=>g.completed).length;document.getElementById("goalStats").innerHTML=`<div class="score"><strong>${goals.length?Math.round(d/goals.length*100):0}%</strong><p>${d} of ${goals.length} goals completed</p></div>`}
+function journal(){let c=document.getElementById("journalDates");c.innerHTML="";past(14).forEach(d=>{let k=K(d);c.innerHTML+=`<div class="day ${L(k).journal?"d2":""}" onclick="jshow('${k}')">${d.getDate()}<span class=dot></span></div>`})}
+function jshow(k){document.getElementById("journalTitle").textContent=new Date(k+"T12:00:00").toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});document.getElementById("journalText").textContent=L(k).journal||"No note."}
+
+const pages=["today","calendar","week","month","year","goals","journal","settings"];
+document.getElementById("nav").innerHTML=pages.map((p,i)=>`<button class="${i===0?"active":""}" onclick="show('${p}')">${p[0].toUpperCase()+p.slice(1)}</button>`).join("");
+function show(p){pages.forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==p));[...document.querySelectorAll("#nav button")].forEach(b=>b.classList.toggle("active",b.textContent.toLowerCase()===p));if(p==="calendar")calendar();if(p==="week")week();if(p==="month")month();if(p==="year")year();if(p==="goals")goalsRender();if(p==="journal")journal()}
+function exportData(){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify({habits,logs:daily,habitLogs,goals},null,2)],{type:"application/json"}));a.download="life-tracker-backup.json";a.click()}
+function importData(){alert("For the cloud version, use the same account on both devices. Local import can be added later if needed.")}
+async function init(){const {data}=await sb.auth.getSession();if(data.session){user=data.session.user;await startApp()}else document.getElementById("auth").classList.remove("hidden")}
+init();
+function render(){renderToday();calendar();week();month();year();goalsRender();journal()}
+</script>
+</body></html>
